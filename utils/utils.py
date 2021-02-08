@@ -1,5 +1,4 @@
 import torch
-from torchvision import transforms
 
 
 def denormalize(img: torch.Tensor):

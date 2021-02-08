@@ -3,7 +3,6 @@ import functools
 import torch
 import torch.nn as nn
 from .norms import SpectralNorm
-from .sa_layer import SelfAttn
 
 
 class G(nn.Module):
@@ -21,16 +20,12 @@ class G(nn.Module):
             conv_layers.append(SpectralNorm(nn.Conv2d(curr_dim, curr_dim * 2, 3)))
             conv_layers.append(nn.BatchNorm2d(curr_dim * 2))
             conv_layers.append(nn.ReLU())
-            # if curr_dim * 2 >= 8:
-            #     conv_layers.append(SelfAttn(curr_dim * 2, 'relu'))
             curr_dim *= 2
 
         for curr_layer in range(layerX2):
             conv_transpose_layers.append(SpectralNorm(nn.ConvTranspose2d(curr_dim, curr_dim // 2, 3)))
             conv_transpose_layers.append(nn.BatchNorm2d(curr_dim // 2))
             conv_transpose_layers.append(nn.ReLU())
-            # if curr_dim // 2 >= 8:
-            #     conv_layers.append(SelfAttn(curr_dim // 2, 'relu'))
             curr_dim //= 2
         self.conv_layers = nn.Sequential(*conv_layers)
         self.conv_transpose_layers = nn.Sequential(*conv_transpose_layers)
@@ -46,42 +41,6 @@ class G(nn.Module):
         out = self.conv_transpose_layers(out)
         out = self.last(out) - 0.5
         return out
-
-
-# class Discriminator(nn.Module):
-#     """Discriminator, Auxiliary Classifier."""
-#
-#     def __init__(self, img_c=3, image_size=64, conv_layers=3):
-#         super(Discriminator, self).__init__()
-#         self.imsize = image_size
-#         convs = []
-#         current_dim = img_c
-#         for i in range(conv_layers):
-#             convs.append(nn.Conv2d(current_dim, current_dim * 2, 3))
-#             convs.append(nn.BatchNorm2d(current_dim * 2))
-#             convs.append(nn.ReLU())
-#             # if current_dim * 2 >= 8:
-#             #     convs.append(SelfAttn(current_dim * 2, 'relu'))
-#             current_dim *= 2
-#         self.convs = nn.Sequential(*convs)
-#         self.fc = nn.Sequential(
-#             nn.Linear(current_dim * (image_size - 2 * conv_layers) ** 2, 256),
-#             nn.Linear(256, 1)
-#         )
-#         self.sigmod = nn.Sigmoid()
-#
-#     def frozen(self, state=True):
-#         parameters = self.named_parameters()
-#         for name, layers in parameters:
-#             layers.requires_grad = state
-#
-#     def forward(self, img: torch.Tensor):
-#         b, c, h, w = img.shape
-#         out = self.convs(img)
-#         out = out.view(b, -1)
-#         out = self.fc(out)
-#         out = self.sigmod(out)
-#         return out
 
 
 class Discriminator(nn.Module):

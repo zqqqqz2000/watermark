@@ -1,22 +1,30 @@
-import torch
+import random
 from torch.utils.data import DataLoader
 import visdom
 
 from net.watermark import WaterMark
 from utils.dataset import Mp4DataSet
+from utils.robustness_transition import transition
 from utils.utils import denormalize
 
 
 class Trainer:
-    def __init__(self, net: WaterMark, data_loader: DataLoader, out_inv=100):
+    def __init__(self, net: WaterMark, data_loader: DataLoader, out_inv=100, device='cpu'):
+        """
+        The trainer for watermark net
+        :param net: main network
+        :param data_loader: data loader to load images
+        :param out_inv: define output interval between each train
+        :param device: the device use to train the network
+        """
         self.net = net
         self.data_loader = data_loader
         self.vis = visdom.Visdom()
         self.out_inv = out_inv
+        self.device = device
 
     def train(self):
-        # device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        device = 'cpu'
+        device = self.device
         self.net.to(device)
         opts = {
             "title": 'train',
@@ -39,9 +47,7 @@ class Trainer:
 
                 gloss = self.net.calc_g_loss()
                 gloss.backward()
-                # self.net.G.frozen(False)
                 self.net.d_opt.step()
-                # self.net.G.frozen(True)
 
                 self.net.D.frozen(False)
                 self.net.g_opt.step()
@@ -56,7 +62,7 @@ class Trainer:
                         win='training loss'
                     )
                     self.vis.images(
-                        [denormalize(self.net.raw_img[0]), denormalize(self.net.add_watermark_img[0])],
+                        [denormalize(self.net.raw_img[0]), denormalize(random.choice(self.net.add_watermark_img_trans)[0])],
                         win='img'
                     )
 
@@ -64,7 +70,7 @@ class Trainer:
 if __name__ == '__main__':
     img_size = 256
     dataset = Mp4DataSet('data/data.mp4', img_resize=img_size)
-    loader = DataLoader(dataset=dataset, batch_size=1, shuffle=True)
-    net = WaterMark(image_size=img_size, d_layers=4, g_layerX2=4)
+    loader = DataLoader(dataset=dataset, batch_size=3, shuffle=True)
+    net = WaterMark(d_layers=4, g_layerX2=4, transitions=transition)
     trainer = Trainer(net, loader, out_inv=1)
     trainer.train()
